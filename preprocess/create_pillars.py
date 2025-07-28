@@ -3,10 +3,10 @@ import numpy as np
 def load_lidar_file(file_path):
     points = np.fromfile(file_path, dtype=np.float32).reshape(-1,4)
     # For testing take only first 10 points 
-    points = points[:10]
+    points = points
     return points
 
-lidar_points = load_lidar_file("C:/Users/anujp/Desktop/PillarNet/data/000000.bin")
+
 
 def grid_discretization(lidar_points,grid_resolution_x=0.16,grid_resolution_y=0.16):
 
@@ -79,6 +79,3 @@ def grid_discretization(lidar_points,grid_resolution_x=0.16,grid_resolution_y=0.
                 points.append(point)
 
     return points
-
-test2 = grid_discretization(lidar_points)
-print(test2)
