@@ -62,9 +62,6 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         
         filled_pillars += 1
         
-        # Debug info for first few pillars
-        if i < 3:
-            print(f"Pillar {i}: ID={pillar_id}, Points={len(sampled_points)}/{len(points_in_pillar)}")
     
     # Step 5: Print statistics
     empty_pillars = max_pillars - filled_pillars
