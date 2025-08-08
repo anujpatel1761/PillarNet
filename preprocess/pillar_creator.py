@@ -1,7 +1,8 @@
 import numpy as np
 import random
 
-def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16):
+def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16, 
+                          x_range=(0, 70.4), y_range=(-40, 40)):
     """
     Convert point cloud to pillar representation with 9D augmented features.
     
@@ -15,20 +16,24 @@ def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16):
         points (np.ndarray): Point cloud of shape (N, 4) with [x, y, z, intensity]
         grid_size_x (float): Grid resolution in x direction (default: 0.16m)
         grid_size_y (float): Grid resolution in y direction (default: 0.16m)
+        x_range (tuple): Range for x coordinates (default: (0, 70.4))
+        y_range (tuple): Range for y coordinates (default: (-40, 40))
     
     Returns:
         dict: Dictionary with pillar_id as key and list of 9D augmented points as value
         dict: Dictionary with pillar_id as key and pillar center coordinates as value
     """
     pillar_data = {}
+    x_min, x_max = x_range
+    y_min, y_max = y_range
     
     # Step 1: Group points into pillars using grid discretization
     for point in points:
         x, y, z, intensity = point
         
-        # Calculate pillar indices using floor division
-        pillar_x = int(np.floor(x / grid_size_x))
-        pillar_y = int(np.floor(y / grid_size_y))
+        # Calculate pillar indices using floor division (WITH OFFSET FOR NEGATIVE COORDS)
+        pillar_x = int(np.floor((x - x_min) / grid_size_x))
+        pillar_y = int(np.floor((y - y_min) / grid_size_y))
         pillar_id = (pillar_x, pillar_y)
         
         # Group points by pillar
@@ -45,9 +50,9 @@ def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16):
     for pillar_id, points_in_pillar in pillar_data.items():
         points_array = np.array(points_in_pillar)
         
-        # Calculate pillar center (geometric center of grid cell)
-        pillar_center_x = pillar_id[0] * grid_size_x + (grid_size_x / 2)
-        pillar_center_y = pillar_id[1] * grid_size_y + (grid_size_y / 2)
+        # Calculate pillar center (geometric center of grid cell IN WORLD COORDINATES)
+        pillar_center_x = x_min + pillar_id[0] * grid_size_x + (grid_size_x / 2)
+        pillar_center_y = y_min + pillar_id[1] * grid_size_y + (grid_size_y / 2)
         pillar_centers[pillar_id] = (pillar_center_x, pillar_center_y)
         
         # Calculate arithmetic mean of all points in this pillar
