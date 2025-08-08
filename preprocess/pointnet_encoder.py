@@ -17,66 +17,51 @@ class PointNetEncoder(nn.Module):
         # BatchNorm for training stability (bias=False since BN handles bias)
         self.bn = nn.BatchNorm1d(out_channels)
 
-    def forward(self, x):
+    def forward(self, x, pillar_mask=None):
         """
         Forward pass with detailed shape tracking
         """
         # === INPUT HANDLING ===
-        # Input: (D, P, N) = (9, 12000, 100) for single sample
-        #    OR: (B, D, P, N) for batched input
         squeeze = False
         if x.dim() == 3:
-            # Input: (D, P, N) = (9, 12000, 100)
             x = x.unsqueeze(0)  # Add batch dimension
-            # Output: (B, D, P, N) = (1, 9, 12000, 100)
             squeeze = True
 
         B, D, P, N = x.shape
-        # Current shape: (B, D, P, N) = (1, 9, 12000, 100)
 
         # === STEP 1: FLATTEN FOR CONV1D ===
-        x = x.flatten(2)  # Flatten from dimension 2 onwards: P*N
-        # Input:  (B, D, P, N) = (1, 9, 12000, 100)
-        # Output: (B, D, P*N) = (1, 9, 1200000)
+        x = x.flatten(2)  # Flatten P*N
 
-        # === STEP 2: APPLY LINEAR LAYER (1x1 CONVOLUTION) ===
-        x = self.conv(x)
-        # Input:  (B, D, P*N) = (1, 9, 1200000)
-        # Output: (B, C, P*N) = (1, 64, 1200000)
+        # === STEP 2-4: CONV + BN + RELU ===
+        x = F.relu(self.bn(self.conv(x)), inplace=True)
 
-        # === STEP 3: BATCH NORMALIZATION ===
-        x = self.bn(x)
-        # Input:  (B, C, P*N) = (1, 64, 1200000)
-        # Output: (B, C, P*N) = (1, 64, 1200000)
+        # === STEP 5: RESHAPE BACK ===
+        x = x.view(B, -1, P, N)
 
-        # === STEP 4: RELU ACTIVATION ===
-        x = F.relu(x, inplace=True)
-        # Input:  (B, C, P*N) = (1, 64, 1200000)
-        # Output: (B, C, P*N) = (1, 64, 1200000)
+        # === STEP 6: MAX POOLING ===
+        x = x.max(dim=3).values  # (B, C, P)
 
-        # Note: Steps 2-4 can be combined as:
-        # x = F.relu(self.bn(self.conv(x)), True)
+        # === STEP 7: APPLY MASK (to zero out empty pillars) ===
+        if pillar_mask is not None:
+            mask = torch.from_numpy(pillar_mask).to(x.device).float()
+            if squeeze:  # Single sample case
+                x = x * mask.unsqueeze(0).unsqueeze(1)  # (1, 1, P)
+            else:  # Batch case
+                x = x * mask.unsqueeze(0).unsqueeze(1)  # Works for both
+    
+        # # Simpler (also works):
+        # if pillar_mask is not None:
+        #     mask = torch.from_numpy(pillar_mask).to(x.device).float()
+        #     x = x * mask.view(1, 1, -1)  # Works for both cases
 
-        # === STEP 5: RESHAPE BACK TO PILLAR FORMAT ===
-        x = x.view(B, -1, P, N)  # -1 infers the C dimension (64)
-        # Input:  (B, C, P*N) = (1, 64, 1200000)
-        # Output: (B, C, P, N) = (1, 64, 12000, 100)
 
-        # === STEP 6: MAX POOLING OVER POINTS ===
-        x = x.max(dim=3).values  # Max over N (points dimension)
-        # Input:  (B, C, P, N) = (1, 64, 12000, 100)
-        # Output: (B, C, P) = (1, 64, 12000)
-
-        # === OUTPUT HANDLING ===
+        # === OUTPUT HANDLING - MUST KEEP THIS! ===
         if squeeze:
-            x = x.squeeze(0)  # Remove batch dimension if it was added
-            # Input:  (B, C, P) = (1, 64, 12000)
-            # Output: (C, P) = (64, 12000)
+            x = x.squeeze(0)  # CRITICAL: Remove batch dimension
+            # (1, 64, 12000) → (64, 12000)
 
         return x
-        # Final output: (C, P) = (64, 12000) for single sample
-        #           OR: (B, C, P) for batched input
-
+    
 
 def scatter_to_pseudo_image(features, coordinates, H, W):
     """

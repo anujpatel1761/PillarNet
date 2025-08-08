@@ -30,32 +30,36 @@ def main():
     filtered_points = filter_point_cloud_range(points, **{k: v for k, v in CONFIG.items() if 'range' in k})
     print(f"Points: {len(points)} → {len(filtered_points)} (filtered)")
 
-    # Step 2: Convert to pillars
-    pillars, _ = point_cloud_to_pillars(filtered_points, CONFIG['grid_size_x'], CONFIG['grid_size_y'])
+    # Step 2: Convert to pillars (WITH RANGES for negative coord handling!)
+    pillars, _ = point_cloud_to_pillars(
+        filtered_points, 
+        CONFIG['grid_size_x'], 
+        CONFIG['grid_size_y'],
+        x_range=CONFIG['x_range'],  # CRITICAL: Pass ranges!
+        y_range=CONFIG['y_range']   # CRITICAL: Pass ranges!
+    )
     print(f"Pillars: {len(pillars)} non-empty")
     
-    # Step 3: Create dense tensor
-    dense_tensor, pillar_coords, filled_pillars = create_dense_tensor(
+    # Step 3: Create dense tensor (NOW WITH PILLAR MASK!)
+    dense_tensor, pillar_coords, filled_pillars, pillar_mask = create_dense_tensor(
         pillars, CONFIG['max_pillars'], CONFIG['max_points_per_pillar']
     )
     print(f"Dense tensor: {dense_tensor.shape}")
     
-    # Step 4: PointNet encoding
+    # Step 4: PointNet encoding (WITH MASK!)
     encoder = PointNetEncoder(in_channels=9, out_channels=CONFIG['feature_channels'])
     dense_tensor = torch.from_numpy(dense_tensor).float()
     
-    # REMOVED: No longer needed since tensor is already (D, P, N)
-    
     with torch.no_grad():
-        pillar_features = encoder(dense_tensor)
+        pillar_features = encoder(dense_tensor, pillar_mask)  # Pass mask!
     print(f"PointNet output: {pillar_features.shape}")
     
     # Step 5: Scatter to pseudo-image
     image_height = int((CONFIG['y_range'][1] - CONFIG['y_range'][0]) / CONFIG['grid_size_y'])
     image_width = int((CONFIG['x_range'][1] - CONFIG['x_range'][0]) / CONFIG['grid_size_x'])
     
-    # FIXED: Extract [x, y] coordinates (columns 2 and 1 from [batch, y, x])
-    coords = torch.from_numpy(pillar_coords[:filled_pillars, [2, 1]]).long()
+    # FIXED: Coordinates are already [x, y] format
+    coords = torch.from_numpy(pillar_coords[:filled_pillars]).long()  # Already [x, y]
     features = pillar_features[:, :filled_pillars]
     
     pseudo_image = scatter_to_pseudo_image(features, coords, image_height, image_width)
