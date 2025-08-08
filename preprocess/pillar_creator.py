@@ -1,8 +1,8 @@
 import numpy as np
 import random
 
-def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16, 
-                          x_range=(0, 70.4), y_range=(-40, 40)):
+def point_cloud_to_pillars(points, config=None, grid_size_x=None, grid_size_y=None, 
+                          x_range=None, y_range=None):
     """
     Convert point cloud to pillar representation with 9D augmented features.
     
@@ -23,6 +23,18 @@ def point_cloud_to_pillars(points, grid_size_x=0.16, grid_size_y=0.16,
         dict: Dictionary with pillar_id as key and list of 9D augmented points as value
         dict: Dictionary with pillar_id as key and pillar center coordinates as value
     """
+    if config is not None:
+        grid_size_x = config.grid_size_x
+        grid_size_y = config.grid_size_y
+        x_range = config.x_range
+        y_range = config.y_range
+    else:
+        # Use defaults if not provided
+        grid_size_x = grid_size_x or 0.16
+        grid_size_y = grid_size_y or 0.16
+        x_range = x_range or (0, 70.4)
+        y_range = y_range or (-40, 40)
+        
     pillar_data = {}
     x_min, x_max = x_range
     y_min, y_max = y_range

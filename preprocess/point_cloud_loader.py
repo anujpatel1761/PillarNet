@@ -13,7 +13,7 @@ def load_lidar_file(file_path):
     points = np.fromfile(file_path, dtype=np.float32).reshape(-1, 4)
     return points
 
-def filter_point_cloud_range(points, x_range=(0, 70.4), y_range=(-40, 40), z_range=(-3, 1)):
+def filter_point_cloud_range(points, config=None, x_range=None, y_range=None, z_range=None):
     """
     Filter point cloud based on detection range as specified in PointPillars paper.
     
@@ -26,6 +26,15 @@ def filter_point_cloud_range(points, x_range=(0, 70.4), y_range=(-40, 40), z_ran
     Returns:
         np.ndarray: Filtered point cloud
     """
+    if config is not None:
+        x_range = config.x_range
+        y_range = config.y_range
+        z_range = config.z_range
+    else:
+        x_range = x_range or (0, 70.4)
+        y_range = y_range or (-40, 40)
+        z_range = z_range or (-3, 1)
+    
     # Create boolean mask for each dimension
     x_mask = (points[:, 0] >= x_range[0]) & (points[:, 0] <= x_range[1])
     y_mask = (points[:, 1] >= y_range[0]) & (points[:, 1] <= y_range[1])

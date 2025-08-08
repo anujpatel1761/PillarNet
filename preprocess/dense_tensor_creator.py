@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pillar=100):
+def create_dense_tensor(augmented_pillars, config=None, max_pillars=None, max_points_per_pillar=None):
     """
     Create dense tensor from augmented pillars with sparsity handling.
     
@@ -23,7 +23,14 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         int: Number of actual filled pillars
         np.ndarray: Boolean mask of shape (max_pillars,) indicating filled pillars
     """
-    
+    # Use config if provided
+    if config is not None:
+        max_pillars = config.max_pillars
+        max_points_per_pillar = config.max_points_per_pillar
+    else:
+        max_pillars = max_pillars or 12000
+        max_points_per_pillar = max_points_per_pillar or 100
+        
     # Step 1: Handle pillar sampling if too many pillars
     pillar_ids = list(augmented_pillars.keys())
     

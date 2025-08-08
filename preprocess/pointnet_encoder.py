@@ -63,37 +63,72 @@ class PointNetEncoder(nn.Module):
         return x
     
 
-def scatter_to_pseudo_image(features, coordinates, H, W):
+# def scatter_to_pseudo_image(features, coordinates, H, W):
+#     """
+#     Scatter pillar features back to spatial locations to create pseudo-image
+    
+#     Args:
+#         features: (C, P) = (64, 12000) - learned features for each pillar
+#         coordinates: (P, 2) = (12000, 2) - [x, y] grid coordinates for each pillar
+#         H: int - height of pseudo-image canvas (500)
+#         W: int - width of pseudo-image canvas (440)
+    
+#     Returns:
+#         pseudo_image: (C, H, W) = (64, 500, 440)
+#     """
+#     # === INPUT SHAPES ===
+#     C, P = features.shape  # (64, 12000)
+#     # coordinates shape: (P, 2) = (12000, 2)
+    
+#     # === INITIALIZE EMPTY PSEUDO-IMAGE ===
+#     pseudo_image = torch.zeros(C, H, W, device=features.device)
+#     # Shape: (C, H, W) = (64, 500, 440)
+    
+#     # === SCATTER FEATURES TO SPATIAL LOCATIONS ===
+#     for i in range(P):  # Loop through all pillars
+#         x, y = coordinates[i]  # Get x, y coordinates for pillar i
+#         # x, y are grid indices
+        
+#         # Bounds checking
+#         if 0 <= x < W and 0 <= y < H:
+#             # Place all C features for pillar i at location (y, x)
+#             pseudo_image[:, y, x] = features[:, i]
+#             # features[:, i] shape: (C,) = (64,)
+#             # pseudo_image[:, y, x] shape: (C,) = (64,)
+    
+#     return pseudo_image  # (C, H, W) = (64, 500, 440)
+
+def scatter_to_pseudo_image_efficient(features, coordinates, filled_pillars, H, W):
     """
-    Scatter pillar features back to spatial locations to create pseudo-image
+    Efficient scatter using PyTorch advanced indexing
     
     Args:
-        features: (C, P) = (64, 12000) - learned features for each pillar
-        coordinates: (P, 2) = (12000, 2) - [x, y] grid coordinates for each pillar
-        H: int - height of pseudo-image canvas (500)
-        W: int - width of pseudo-image canvas (440)
+        features: (C, P) - learned features for each pillar
+        coordinates: (P, 2) - [x, y] grid coordinates for each pillar
+        filled_pillars: int - number of actually filled pillars
+        H, W: canvas dimensions
     
     Returns:
-        pseudo_image: (C, H, W) = (64, 500, 440)
+        pseudo_image: (C, H, W)
     """
-    # === INPUT SHAPES ===
-    C, P = features.shape  # (64, 12000)
-    # coordinates shape: (P, 2) = (12000, 2)
+    C, P = features.shape
+    device = features.device
     
-    # === INITIALIZE EMPTY PSEUDO-IMAGE ===
-    pseudo_image = torch.zeros(C, H, W, device=features.device)
-    # Shape: (C, H, W) = (64, 500, 440)
+    # Initialize pseudo-image
+    pseudo_image = torch.zeros(C, H, W, device=device)
     
-    # === SCATTER FEATURES TO SPATIAL LOCATIONS ===
-    for i in range(P):  # Loop through all pillars
-        x, y = coordinates[i]  # Get x, y coordinates for pillar i
-        # x, y are grid indices
-        
-        # Bounds checking
-        if 0 <= x < W and 0 <= y < H:
-            # Place all C features for pillar i at location (y, x)
-            pseudo_image[:, y, x] = features[:, i]
-            # features[:, i] shape: (C,) = (64,)
-            # pseudo_image[:, y, x] shape: (C,) = (64,)
+    # Only use filled pillars (rest are zero-padded)
+    valid_coords = coordinates[:filled_pillars]
+    valid_features = features[:, :filled_pillars]
     
-    return pseudo_image  # (C, H, W) = (64, 500, 440)
+    # Extract x, y indices (coordinates are [x, y])
+    x_indices = valid_coords[:, 0].long()
+    y_indices = valid_coords[:, 1].long()
+    
+    # Bounds checking
+    valid = (x_indices >= 0) & (x_indices < W) & (y_indices >= 0) & (y_indices < H)
+    
+    # Scatter using advanced indexing
+    pseudo_image[:, y_indices[valid], x_indices[valid]] = valid_features[:, valid]
+    
+    return pseudo_image
