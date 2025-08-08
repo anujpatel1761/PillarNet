@@ -21,6 +21,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         np.ndarray: Dense tensor of shape (9, max_pillars, max_points_per_pillar)
         np.ndarray: Pillar coordinates of shape (max_pillars, 2) for scattering back
         int: Number of actual filled pillars
+        np.ndarray: Boolean mask of shape (max_pillars,) indicating filled pillars
     """
     
     # Step 1: Handle pillar sampling if too many pillars
@@ -39,6 +40,9 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
     # Step 3: Initialize pillar coordinates for scattering back to pseudo-image
     # Format: [x_coord, y_coord] (no batch needed for single sample)
     pillar_coordinates = np.zeros((max_pillars, 2), dtype=np.int32)
+    
+    # Initialize pillar mask to track filled pillars
+    pillar_mask = np.zeros(max_pillars, dtype=np.bool_)
     
     # Step 4: Fill dense tensor with actual pillar data
     filled_pillars = 0
@@ -60,6 +64,9 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         # pillar_id = (pillar_x, pillar_y)
         pillar_coordinates[i] = [pillar_id[0], pillar_id[1]]  # [x, y]
         
+        # Mark this pillar as filled
+        pillar_mask[i] = True
+        
         filled_pillars += 1
         
     
@@ -76,7 +83,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
     print(f"Dense tensor shape: {dense_tensor.shape}")
     print(f"Pillar coordinates shape: {pillar_coordinates.shape}")
     
-    return dense_tensor, pillar_coordinates, filled_pillars
+    return dense_tensor, pillar_coordinates, filled_pillars, pillar_mask
 
 def create_pseudo_image_indices(pillar_coordinates, filled_pillars, image_height, image_width):
     """
