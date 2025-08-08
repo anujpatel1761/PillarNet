@@ -18,7 +18,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         max_points_per_pillar (int): Maximum number of points per pillar (N)
     
     Returns:
-        np.ndarray: Dense tensor of shape (max_pillars, max_points_per_pillar, 9)
+        np.ndarray: Dense tensor of shape (9, max_pillars, max_points_per_pillar)
         np.ndarray: Pillar coordinates of shape (max_pillars, 3) for scattering back
         int: Number of actual filled pillars
     """
@@ -33,8 +33,8 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         selected_pillar_ids = pillar_ids
     
     # Step 2: Initialize dense tensor with zeros (automatic padding)
-    # Shape: (P, N, D) where D=9 dimensions
-    dense_tensor = np.zeros((max_pillars, max_points_per_pillar, 9), dtype=np.float32)
+    # Shape: (D, P, N) where D=9 dimensions
+    dense_tensor = np.zeros((9,max_pillars, max_points_per_pillar), dtype=np.float32)
     
     # Step 3: Initialize pillar coordinates for scattering back to pseudo-image
     # Format: [batch_index, y_coord, x_coord] (batch=0 for single sample)
@@ -54,7 +54,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         
         # Fill dense tensor with sampled points
         for j, point in enumerate(sampled_points):
-            dense_tensor[i, j, :] = point
+            dense_tensor[:, i, j] = point
         
         # Store pillar coordinates for scattering back to pseudo-image
         # pillar_id = (pillar_x, pillar_y)

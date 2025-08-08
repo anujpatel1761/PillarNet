@@ -44,9 +44,7 @@ def main():
     encoder = PointNetEncoder(in_channels=9, out_channels=CONFIG['feature_channels'])
     dense_tensor = torch.from_numpy(dense_tensor).float()
     
-    # Ensure correct shape: (D, P, N)
-    if dense_tensor.shape[0] != 9:
-        dense_tensor = dense_tensor.permute(2, 0, 1)
+    # REMOVED: No longer needed since tensor is already (D, P, N)
     
     with torch.no_grad():
         pillar_features = encoder(dense_tensor)
@@ -56,7 +54,8 @@ def main():
     image_height = int((CONFIG['y_range'][1] - CONFIG['y_range'][0]) / CONFIG['grid_size_y'])
     image_width = int((CONFIG['x_range'][1] - CONFIG['x_range'][0]) / CONFIG['grid_size_x'])
     
-    coords = torch.from_numpy(pillar_coords[:filled_pillars, :2]).long()
+    # FIXED: Extract [x, y] coordinates (columns 2 and 1 from [batch, y, x])
+    coords = torch.from_numpy(pillar_coords[:filled_pillars, [2, 1]]).long()
     features = pillar_features[:, :filled_pillars]
     
     pseudo_image = scatter_to_pseudo_image(features, coords, image_height, image_width)
