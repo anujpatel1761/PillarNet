@@ -19,7 +19,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
     
     Returns:
         np.ndarray: Dense tensor of shape (9, max_pillars, max_points_per_pillar)
-        np.ndarray: Pillar coordinates of shape (max_pillars, 3) for scattering back
+        np.ndarray: Pillar coordinates of shape (max_pillars, 2) for scattering back
         int: Number of actual filled pillars
     """
     
@@ -37,8 +37,8 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
     dense_tensor = np.zeros((9,max_pillars, max_points_per_pillar), dtype=np.float32)
     
     # Step 3: Initialize pillar coordinates for scattering back to pseudo-image
-    # Format: [batch_index, y_coord, x_coord] (batch=0 for single sample)
-    pillar_coordinates = np.zeros((max_pillars, 3), dtype=np.int32)
+    # Format: [x_coord, y_coord] (no batch needed for single sample)
+    pillar_coordinates = np.zeros((max_pillars, 2), dtype=np.int32)
     
     # Step 4: Fill dense tensor with actual pillar data
     filled_pillars = 0
@@ -58,7 +58,7 @@ def create_dense_tensor(augmented_pillars, max_pillars=12000, max_points_per_pil
         
         # Store pillar coordinates for scattering back to pseudo-image
         # pillar_id = (pillar_x, pillar_y)
-        pillar_coordinates[i] = [0, pillar_id[1], pillar_id[0]]  # [batch, y, x]
+        pillar_coordinates[i] = [pillar_id[0], pillar_id[1]]  # [x, y]
         
         filled_pillars += 1
         
@@ -83,7 +83,7 @@ def create_pseudo_image_indices(pillar_coordinates, filled_pillars, image_height
     Create indices for scattering pillar features back to pseudo-image format.
     
     Args:
-        pillar_coordinates (np.ndarray): Pillar coordinates of shape (P, 3)
+        pillar_coordinates (np.ndarray): Pillar coordinates of shape (P, 2)
         filled_pillars (int): Number of actual filled pillars
         image_height (int): Height of pseudo-image (typically H = y_range / grid_size)  
         image_width (int): Width of pseudo-image (typically W = x_range / grid_size)
@@ -94,12 +94,11 @@ def create_pseudo_image_indices(pillar_coordinates, filled_pillars, image_height
     # Only use coordinates for filled pillars
     valid_coords = pillar_coordinates[:filled_pillars]
     
-    # Extract batch, y, x indices
-    batch_indices = valid_coords[:, 0]  # Always 0 for single sample
+    # Extract x, y indices
+    x_indices = valid_coords[:, 0]
     y_indices = valid_coords[:, 1] 
-    x_indices = valid_coords[:, 2]
     
     print(f"Pseudo-image size: ({image_height}, {image_width})")
     print(f"Valid pillar coordinates: {filled_pillars}")
     
-    return batch_indices, y_indices, x_indices
+    return x_indices, y_indices
